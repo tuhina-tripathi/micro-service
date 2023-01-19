@@ -1,20 +1,42 @@
-import grpc
+package main
 
-# import the generated classes
-import input_service_pb2
-import input_service_pb2_grpc
+import (
+	"fmt"
 
-def get_user_name():
-    with grpc.insecure_channel('localhost:50051') as channel:
-        stub = input_service_pb2_grpc.InputServiceStub(channel)
-        response = stub.GetName(input_service_pb2.NameRequest())
-    return response.name
+	"google.golang.org/grpc"
+	pb "path/to/input_service_pb"
+)
 
-class GreetingService():
-    def get_greeting(self, name):
-        return "Hello, " + name + "!"
+func getUserName() (string, error) {
+	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	if err != nil {
+		return "", fmt.Errorf("did not connect: %v", err)
+	}
+	defer conn.Close()
 
-if __name__ == '__main__':
-    user_name = get_user_name()
-    greeting_service = GreetingService()
-    print(greeting_service.get_greeting(user_name))
+	c := pb.NewInputServiceClient(conn)
+
+	r, err := c.GetName(context.Background(), &pb.NameRequest{})
+	if err != nil {
+		return "", fmt.Errorf("could not greet: %v", err)
+	}
+
+	return r.Name, nil
+}
+
+type greetingService struct{}
+
+func (g *greetingService) getGreeting(name string) string {
+	return "Hello, " + name + "!"
+}
+
+func main() {
+	userName, err := getUserName()
+	if err != nil {
+		log.Fatalf("Error getting user name: %v", err)
+	}
+
+	g := &greetingService{}
+	fmt.Println(g.getGreeting(userName))
+}
+
