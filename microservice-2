@@ -1,0 +1,20 @@
+import grpc
+
+# import the generated classes
+import input_service_pb2
+import input_service_pb2_grpc
+
+def get_user_name():
+    with grpc.insecure_channel('localhost:50051') as channel:
+        stub = input_service_pb2_grpc.InputServiceStub(channel)
+        response = stub.GetName(input_service_pb2.NameRequest())
+    return response.name
+
+class GreetingService():
+    def get_greeting(self, name):
+        return "Hello, " + name + "!"
+
+if __name__ == '__main__':
+    user_name = get_user_name()
+    greeting_service = GreetingService()
+    print(greeting_service.get_greeting(user_name))
