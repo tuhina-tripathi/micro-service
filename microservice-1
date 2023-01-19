@@ -1,0 +1,29 @@
+import grpc
+from concurrent import futures
+import time
+
+# import the generated classes
+import input_service_pb2
+import input_service_pb2_grpc
+
+#create a cache to store the user's name
+user_name_cache = {}
+
+class InputService(input_service_pb2_grpc.InputServiceServicer):
+    def GetName(self, request, context):
+        user_name_cache['name'] = request.name
+        return input_service_pb2.Name(name=request.name)
+
+def serve():
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    input_service_pb2_grpc.add_InputServiceServicer_to_server(InputService(), server)
+    server.add_insecure_port('[::]:50051')
+    server.start()
+    try:
+        while True:
+            time.sleep(60*60*24)
+    except KeyboardInterrupt:
+        server.stop(0)
+
+if __name__ == '__main__':
+    serve()
