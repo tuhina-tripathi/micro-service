@@ -1,29 +1,37 @@
-import grpc
-from concurrent import futures
-import time
+package main
 
-# import the generated classes
-import input_service_pb2
-import input_service_pb2_grpc
+import (
+	"context"
+	"fmt"
+	"log"
+	"net"
+	"sync"
 
-#create a cache to store the user's name
-user_name_cache = {}
+	"google.golang.org/grpc"
+	pb "path/to/input_service_pb"
+)
 
-class InputService(input_service_pb2_grpc.InputServiceServicer):
-    def GetName(self, request, context):
-        user_name_cache['name'] = request.name
-        return input_service_pb2.Name(name=request.name)
+type server struct {
+	userNameCache map[string]string
+	mu            sync.Mutex
+}
 
-def serve():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    input_service_pb2_grpc.add_InputServiceServicer_to_server(InputService(), server)
-    server.add_insecure_port('[::]:50051')
-    server.start()
-    try:
-        while True:
-            time.sleep(60*60*24)
-    except KeyboardInterrupt:
-        server.stop(0)
+func (s *server) GetName(ctx context.Context, in *pb.NameRequest) (*pb.NameReply, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.userNameCache["name"] = in.Name
+	return &pb.NameReply{Name: in.Name}, nil
+}
 
-if __name__ == '__main__':
-    serve()
+func main() {
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := &server{userNameCache: make(map[string]string)}
+	grpcServer := grpc.NewServer()
+	pb.RegisterInputServiceServer(grpcServer, s)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+}
